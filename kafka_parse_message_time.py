@@ -33,7 +33,7 @@ from flask import Flask
 
 CONFIG_TYPES = {
 	'KafkaSettings': {
-		'brokers': str,
+		'broker': str,
 		'topic': str,
 		'avro_val_schema': str,
 	},
@@ -54,7 +54,7 @@ CONFIG_TYPES = {
 
 DEFAULT_CONFIG = {
 	'KafkaSettings': {
-		'brokers': 'localhost:2181',
+		'broker': 'localhost:2181',
 		'topic': 'logstash-test',
 		'avro_val_schema': None,
 	},
@@ -88,18 +88,20 @@ class AccumDict(AccumulatorParam):
 			v1[key] += v2[key]
 		return v1
 
-def ss_kafka_interval_counter(zkQuorum, topic, bucket_interval, output_msg, 
+def ss_kafka_interval_counter(broker, topic, bucket_interval, output_msg, 
 		message_parse, valueDecoder=None):
 	"""Starts a Spark Streaming job from a Kafka input and parses message time
 
 	Args:
-		brokers: the kafka broker that we look at for the topic
+		broker: the kafka broker that we look at for the topic
 		topic: the kafka topic for input
 		bucket_interval: the time interval in seconds (int) that the job will 
 			bucket
 		output_msg: a function that takes in a spark SparkContext (sc) and 
 			StreamingContext (ssc) and returns a function that takes a rdd that 
 			performs the output task
+		message_parse: how the message is to be parsed
+		valueDecoder: same as Spark's valueDecoder
 
 	Returns:
 		None
@@ -112,12 +114,12 @@ def ss_kafka_interval_counter(zkQuorum, topic, bucket_interval, output_msg,
 
 	if valueDecoder:
 		kvs = KafkaUtils.createStream(
-			ssc, zkQuorum, "spark-streaming-consumer", {topic: 1}, 
+			ssc, broker, "spark-streaming-consumer", {topic: 1}, 
 			valueDecoder=valueDecoder
 		)
 	else:
 		kvs = KafkaUtils.createStream(
-			ssc, zkQuorum, "spark-streaming-consumer", {topic: 1},
+			ssc, broker, "spark-streaming-consumer", {topic: 1},
 		)
 
 	# I assume that we do not store kafka keys
@@ -271,14 +273,14 @@ def create_http_share_func(mp_queue):
 
 	return wrapper
 
-def kafka_http_sqlite(brokers, topic, bucket_interval, conversion_dict, 
+def kafka_http_sqlite(broker, topic, bucket_interval, conversion_dict, 
 		bucket_field, bucket_type, avro_schema, sqlite_schema, db, table_name, 
 		clean_interval, clean_freq_interval):
 	"""Generates a func that writes the inputed values to a datastructure that 
 	the HTTP
 
 	Args:
-		brokers: the broker (str) for the kafka topic (bellow)
+		broker: the broker (str) for the kafka topic (bellow)
 		topic: Kafka topic (str) for the spark streaming job to listen to
 		bucket_interval: an int of how frequent the spark streaming batch job 
 			should run
@@ -286,8 +288,6 @@ def kafka_http_sqlite(brokers, topic, bucket_interval, conversion_dict,
 		A function that will populate the RecentArrayDumpTable given an iter
 		
 	"""
-
-
 	q = Queue()
 
 	http_func = create_http_share_func(q)
@@ -302,7 +302,7 @@ def kafka_http_sqlite(brokers, topic, bucket_interval, conversion_dict,
 		value_decoder = None
 
 	s = lambda: ss_kafka_interval_counter(
-		brokers, topic, bucket_interval, http_func, message_parse,
+		broker, topic, bucket_interval, http_func, message_parse,
 		valueDecoder=value_decoder
 	)
 	spark_streaming = Process(target=s)
@@ -331,7 +331,7 @@ def read_KHS_config_file(config_file_path):
 			if config[header][key]:
 				config[header][key] = cast(config[header][key])
 		
-	brokers = config['KafkaSettings']['brokers']
+	broker = config['KafkaSettings']['broker']
 	topic = config['KafkaSettings']['topic']
 	bucket_interval = config['MsgSettings']['bucket_interval']
 	bucket_field = config['MsgSettings']['bucket_field']
@@ -349,7 +349,7 @@ def read_KHS_config_file(config_file_path):
 
 
 	return (
-		brokers, topic, bucket_interval, conversion_dict, bucket_field,
+		broker, topic, bucket_interval, conversion_dict, bucket_field,
 		bucket_type, avro_schema, sqlite_schema, db, table_name, clean_interval, 
 		clean_freq_interval
 	)
@@ -360,12 +360,108 @@ if __name__ == "__main__":
 	Usage: kafka_parse_message_time.py <config_file_path>
 	
 	"""
+
 	if len(sys.argv) == 2:
 		config_file_path = sys.argv[1:]
 		kafka_http_sqlite(*read_KHS_config_file(config_file_path))
-
 	else:
 		print >> sys.stderr, ("kafka_parse_message_time.py <config_file_path>")
 		exit(-1)
 
+#################################################################
+##Trunk##########################################################
+#################################################################
 
+import MySQLdb
+
+def create_send_mysql_msg_func(mysql_host, mysql_usr, mysql_pwd, mysql_db, 
+		mysql_parse):
+	"""Generates a function that takes in a stream of messages and sends thme to 
+	to both a specified 
+
+	Args:
+		mysql_host: the mysql host location (str)
+		mysql_usr: the user intended to write to the mysql database (str)
+		mysql_pwd: the pwd of the user for mysql (str)
+		mysql_db: the database in the mysql host intended to write to (str)
+		mysql_parse: a function that will parse the msgs into mysql exec 
+			commands (func)
+
+	Returns:
+		A function that can take a iter of messages and sends them to the
+		specified mysql table
+	"""
+
+	def send_mysql_msg(iters):
+		db = MySQLdb.connect(host=mysql_host, user=mysql_usr, 
+			passwd=mysql_pwd, db=mysql_db)
+		cursor = db.cursor()
+		for key, val in iters:
+			json_msg = combine_count_json(key, val)
+			cursor.execute(mysql_parse(json_msg))
+		db.commit()
+		db.close()
+
+	def per_rdd_do(rdd):
+		rdd.foreachPartition(send_mysql_msg)
+
+	return lambda sc, scc: per_rdd_do
+
+def create_mysql_parse_func(schema):
+	"""Generates the mysql insert statement to update a database
+
+	Args:
+		schema: the schema in which to parse the msgs with. Is a dict that 
+			follows the following format.
+			{
+				'table_name': 'tablename',
+				'dup_key_update': {
+					'column_val = column_val + {0}': 'column_name',
+					'column_val1 = column_val1 * {0}': 'column_name1',
+					...
+				},
+				'msg_map_schema': {
+					'mysql_column': 'corresponding_dict_field',
+					'mysql_column1': 'corresponding_dict_field1',
+					...
+				}
+			}
+		
+	Returns:
+		The sql command that inserts the msg data into the database 
+
+	Example:
+		>>> schema = {'table_name': 'tablename', 'dup_key_update': {
+		...			'column_val = column_val + {0}': 'column_name',
+		...			'column_val1 = column_val1 * {0}': 'column_name1'
+		...		},
+		...		'msg_map_schema': {
+		...			'mysql_column': 'corresponding_dict_field',
+		...			'mysql_column1': 'corresponding_dict_field1',
+		...		}
+		...	}
+		>>> f = create_mysql_parse_func(schema)
+		>>> dict_msg = {
+		... 	'column_name': 1,
+		... 	'column_name1': 2,
+		... 	'corresponding_dict_field': 3,
+		... 	'corresponding_dict_field1': 4,
+		... }
+		>>> f(dict_msg)[:70]
+		'INSERT INTO tablename (mysql_column1,mysql_column) VALUES (4,3) ON DUP'
+	"""
+	sql_action = (
+		"INSERT INTO {0} ({1}) VALUES ({2}) ON DUPLICATE KEY UPDATE {3};"
+	)
+	table_name = schema['table_name']
+	dup_key_update = schema['dup_key_update']
+	msg_map = schema['msg_map_schema']
+	column_str = ','.join(key for key in msg_map)
+
+	def mysql_parse(dict_msg):
+		vals = ','.join(str(dict_msg[msg_map[key]]) for key in msg_map)
+		update = ','.join(key.format(dict_msg[dup_key_update[key]]) 
+			for key in dup_key_update)
+		return sql_action.format(table_name, column_str, vals, update)
+
+	return mysql_parse

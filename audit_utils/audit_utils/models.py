@@ -1,7 +1,6 @@
 import sqlite3
 import sys
 
-
 DEFAULT_TABLE_NAME='default'
 MEM_DB=':memory:'
 
