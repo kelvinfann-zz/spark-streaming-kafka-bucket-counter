@@ -316,10 +316,10 @@ def avro_to_dict(schema, msg_count, raw_bytes):
 		the messages in the form of strings
 
 	Examples:
-		>>> schema = '{"namespace": "example.avro", "type": "record", "name":\
-				"User", "fields": [{"name": "name", "type": "string"}, {"name":\
-				"favorite_number",  "type": ["int", "null"]}, {"name":\
-				"favorite_color", "type": ["string", "null"]}]}'
+		>>> schema = '{"namespace": "example.avro", "type": "record", "name":
+		... 		"User", "fields": [{"name": "name", "type": "string"}, {"name":
+		... 		"favorite_number",  "type": ["int", "null"]}, {"name":
+		... 		"favorite_color", "type": ["string", "null"]}]}'
 		>>> dict_iter = [{"name": "Alyssa", "favorite_number": 256},]
 		>>> count, raw_bytes = dict_to_avro(schema, dict_iter)
 		>>> s = avro_to_dict(schema, count, raw_bytes)
@@ -349,10 +349,10 @@ def avro_decoder_func(schema):
 		string form of the json 
 
 	Example:
-		>>> test_schema = '''{"namespace": "example.avro","type": "record",\
-				"name": "User","fields": [{"name": "name", "type": "string"},\
-				{"name": "favorite_number",  "type": ["int", "null"]},{"name":\
-				"favorite_color", "type": ["string", "null"]}]}'''
+		>>> test_schema = '''{"namespace": "example.avro","type": "record",
+		...		"name": "User","fields": [{"name": "name", "type": "string"},
+		...		{"name": "favorite_number",  "type": ["int", "null"]},{"name":
+		...		"favorite_color", "type": ["string", "null"]}]}'''
 		>>> decoder = avro_decoder_func(test_schema)
 		>>> schema = avro.schema.parse(test_schema)
 		>>> writer = avro.io.DatumWriter(schema)
