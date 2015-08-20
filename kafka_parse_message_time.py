@@ -186,46 +186,15 @@ def combine_count_json(json_msg, count):
 
 	return '{0}, "count": {1}'.format(json_msg[:-1], count) + '}'
 
-def create_send_kafka_msg_func(kafka_host, topic):
-	"""Generates the function that takes in a stream of messages and sends them
-	to the specified kafka sever/topic
-
-	Args:
-		kafka_host: the string of the kafka host location
-		topic: the string name of the topic in the kafka host that the msgs are 
-			sent
-
-	Returns:
-		A function that can take a iter of messages and sends them to the
-		specified kafka server
-		
-	"""
-
-	def send_kafka_msg(iters):
-		#TODO: Add try/catch statements for kafka connection
-		kafka = KafkaClient(kafka_host)
-		producer = SimpleProducer(kafka)
-		for key, val in iters:
-			msg = combine_count_json(key, val)
-			producer.send_messages(
-				str(topic).encode('utf-8'), str(msg).encode('utf-8')
-			)
-		kafka.close()
-
-	def per_rdd_do(rdd):
-		rdd.foreachPartition(send_kafka_msg)
-
-	return lambda sc, ssc: per_rdd_do
-
 def create_http_share_func(mp_queue):
-	"""Generates a func that writes the inputed values to a datastructure that 
-	the HTTP
+	"""Generates a func that consolidates all the data in a stream and puts it on a
+	queue
 
 	Args:
-		recent_storage: a RecentArrayDumpTable that stores the most recent 
-			appended values
+		mp_queue: a queue that the function will write its consolidated data to
 	Returns:
-		A function that will populate the RecentArrayDumpTable given an iter
+		A function that consolidates all the data in a stream and puts it on a
+		queue
 		
 	"""
 
@@ -369,6 +338,39 @@ if __name__ == "__main__":
 #################################################################
 ##Trunk##########################################################
 #################################################################
+
+def create_send_kafka_msg_func(kafka_host, topic):
+	"""Generates the function that takes in a stream of messages and sends them
+	to the specified kafka sever/topic
+
+	Args:
+		kafka_host: the string of the kafka host location
+		topic: the string name of the topic in the kafka host that the msgs are 
+			sent
+
+	Returns:
+		A function that can take a iter of messages and sends them to the
+		specified kafka server
+		
+	"""
+
+	def send_kafka_msg(iters):
+		#TODO: Add try/catch statements for kafka connection
+		kafka = KafkaClient(kafka_host)
+		producer = SimpleProducer(kafka)
+		for key, val in iters:
+			msg = combine_count_json(key, val)
+			producer.send_messages(
+				str(topic).encode('utf-8'), str(msg).encode('utf-8')
+			)
+		kafka.close()
+
+	def per_rdd_do(rdd):
+		rdd.foreachPartition(send_kafka_msg)
+
+	return lambda sc, ssc: per_rdd_do
+	
+#####
 
 import MySQLdb
 
