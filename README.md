@@ -26,7 +26,7 @@ msg_map_schema = path to .json msg map schema file
 
 [HTTPEndpointSetting]
 sqlite_schema = path to .json sqlite schema file
-sqlite_db = path to sqlite db file that will be used as the backend for the HTTP endpoint. Or ':memory:'
+sqlite_db = path to sqlite db file that will be used as the backend for the HTTP endpoint. Or ':memory:' [NOTE that if you choose a NON-memory database you must make a reconnect call after the HTTP service starts. ]
 sqlite_table = sqlite table name in which the HTTP endpoint will store data to
 clean_interval = 'how long' the message counts will be stored in the sqlite table
 clean_freq = 'how frequent' the messages will be cleaned
