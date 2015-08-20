@@ -11,7 +11,7 @@ from ConfigParser import ConfigParser
 
 EPOCH_ORIG=datetime.datetime(1970,1,1)
 
-LEGEND={
+TS_LEGEND={
 	'epoch': (lambda epoch, interval: bucket_epoch_epoch(
 		interval, long(epoch))
 	), 
@@ -90,7 +90,7 @@ def json_dict_bucket_parse(json_str, conversion_dict, bucket_field,
 	new_json_dict = json.loads(new_json)
 	old_json_dict = json.loads(json_str)
 
-	cast = LEGEND[bucket_type]
+	cast = TS_LEGEND[bucket_type]
 	bucket_start, bucket_end = cast(old_json_dict[bucket_field],bucket_interval)
 	new_json_dict['bucket_start'] = bucket_start
 	new_json_dict['bucket_end'] = bucket_end
