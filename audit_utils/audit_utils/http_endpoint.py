@@ -14,73 +14,6 @@ class HttpEndpoint(Resource):
 		return cls
 
 ##########################################
-#RecentArrayDumpTable Datastore Endpoint##
-##########################################
-
-def setup_site_RADT(app, recent_storage, data_queue):
-	"""A setup function that sets up the site's calls for the http endpoint.
-	Uses the Recent Array Dump-Table to store the data in memory
-	"""
-	api = Api(app)
-
-	updatevals = lambda: recent_storage.queue_append(data_queue)
-	app.before_request(updatevals)
-
-	recentval = RADTRecentVal.set(recent_storage)
-	directval = RADTDirectVal.set(recent_storage)
-	selectrange = RADTSelectRange.set(recent_storage)
-	custom = RADTCustom.set(recent_storage)
-
-	api.add_resource(recentval, '/rv/<int:num_items>')
-	api.add_resource(directval, '/dv/<int:index>')
-	api.add_resource(selectrange, '/sr/<string:parameter>/<string:range_start>:<string:range_end>')
-	api.add_resource(custom, '/c/<string:c_index>/EOE')
-
-class RADTRecentVal(HttpEndpoint):
-	"""An http get call that will return the `num_items` most recent items 
-	stored into the `recent_storage`
-	"""
-
-	def get(self, num_items):
-		return self.recent_storage.get_recent(num_items)
-
-class RADTDirectVal(HttpEndpoint):
-	"""An http get call that will return the `index`th item in the 
-	`recent_storage`
-	"""
-
-	def get(self, index):
-		return self.recent_storage.get(index)
-
-class RADTSelectRange(HttpEndpoint):
-	"""An http get call that will all row entries in the specified range
-	"""
-
-	def get(self, parameter, range_start, range_end):
-		if range_start != 'None':
-			range_start = int(range_start)
-		else:
-			range_start = None
-		if range_end != 'None':
-			range_end = int(range_end)
-		else:
-			range_end = None
-		search = {parameter: (range_start, range_end)}
-		return self.recent_storage.select_range(search)
-
-class RADTCustom(HttpEndpoint):
-	"""An http get call that will all row entries in the specified range
-	"""
-
-	def get(self, c_index):
-		s = {}
-		try:
-			s = json_to_dict(c_index)
-			return self.recent_storage.c_general_select(s)			
-		except:
-			return self.recent_storage.c_general_select({})
-
-##########################################
 ##SQLite Datastore Endpoint###############
 ##########################################
 
@@ -169,3 +102,70 @@ class RSTIDFetch(HttpEndpoint):
 	"""
 	def get(self):
 		return self.recent_storage.rst_id
+		
+##########################################
+#RecentArrayDumpTable Datastore Endpoint##
+##########################################
+
+def setup_site_RADT(app, recent_storage, data_queue):
+	"""A setup function that sets up the site's calls for the http endpoint.
+	Uses the Recent Array Dump-Table to store the data in memory
+	"""
+	api = Api(app)
+
+	updatevals = lambda: recent_storage.queue_append(data_queue)
+	app.before_request(updatevals)
+
+	recentval = RADTRecentVal.set(recent_storage)
+	directval = RADTDirectVal.set(recent_storage)
+	selectrange = RADTSelectRange.set(recent_storage)
+	custom = RADTCustom.set(recent_storage)
+
+	api.add_resource(recentval, '/rv/<int:num_items>')
+	api.add_resource(directval, '/dv/<int:index>')
+	api.add_resource(selectrange, '/sr/<string:parameter>/<string:range_start>:<string:range_end>')
+	api.add_resource(custom, '/c/<string:c_index>/EOE')
+
+class RADTRecentVal(HttpEndpoint):
+	"""An http get call that will return the `num_items` most recent items 
+	stored into the `recent_storage`
+	"""
+
+	def get(self, num_items):
+		return self.recent_storage.get_recent(num_items)
+
+class RADTDirectVal(HttpEndpoint):
+	"""An http get call that will return the `index`th item in the 
+	`recent_storage`
+	"""
+
+	def get(self, index):
+		return self.recent_storage.get(index)
+
+class RADTSelectRange(HttpEndpoint):
+	"""An http get call that will all row entries in the specified range
+	"""
+
+	def get(self, parameter, range_start, range_end):
+		if range_start != 'None':
+			range_start = int(range_start)
+		else:
+			range_start = None
+		if range_end != 'None':
+			range_end = int(range_end)
+		else:
+			range_end = None
+		search = {parameter: (range_start, range_end)}
+		return self.recent_storage.select_range(search)
+
+class RADTCustom(HttpEndpoint):
+	"""An http get call that will all row entries in the specified range
+	"""
+
+	def get(self, c_index):
+		s = {}
+		try:
+			s = json_to_dict(c_index)
+			return self.recent_storage.c_general_select(s)			
+		except:
+			return self.recent_storage.c_general_select({})
