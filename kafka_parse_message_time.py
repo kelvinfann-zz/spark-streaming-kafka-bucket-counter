@@ -88,7 +88,7 @@ class AccumDict(AccumulatorParam):
 			v1[key] += v2[key]
 		return v1
 
-def ss_kafka_interval_counter(broker, topic, bucket_interval, output_msg, 
+def ss_kafka_bucket_counter(broker, topic, bucket_interval, output_msg, 
 		message_parse, valueDecoder=None):
 	"""Starts a Spark Streaming job from a Kafka input and parses message time
 
@@ -107,9 +107,7 @@ def ss_kafka_interval_counter(broker, topic, bucket_interval, output_msg,
 		None
 		
 	"""
-	
-
-	sc = SparkContext(appName="PythonKafkaParseMessage")
+	sc = SparkContext(appName="PythonKafkaBucketCounter")
 	ssc = StreamingContext(sc, bucket_interval + 5)
 
 	if valueDecoder:
@@ -134,7 +132,7 @@ def ss_kafka_interval_counter(broker, topic, bucket_interval, output_msg,
 	ssc.start()
 	ssc.awaitTermination()
 
-def ss_direct_kafka_interval_counter(brokers, topic, bucket_interval, 
+def ss_direct_kafka_bucket_counter(brokers, topic, bucket_interval, 
 		output_msg, message_parse, valueDecoder=None):
 	"""Starts a Spark Streaming job from a Kafka input and parses message time
 
@@ -150,7 +148,7 @@ def ss_direct_kafka_interval_counter(brokers, topic, bucket_interval,
 		None
 		
 	"""
-	sc = SparkContext(appName="PythonKafkaParseMessage")
+	sc = SparkContext(appName="PythonKafkaBucketCounter")
 	ssc = StreamingContext(sc, timeinterval + 5)
 
 	if valueDecoder:
@@ -301,7 +299,7 @@ def kafka_http_sqlite(broker, topic, bucket_interval, conversion_dict,
 	else:
 		value_decoder = None
 
-	s = lambda: ss_kafka_interval_counter(
+	s = lambda: ss_kafka_bucket_counter(
 		broker, topic, bucket_interval, http_func, message_parse,
 		valueDecoder=value_decoder
 	)
