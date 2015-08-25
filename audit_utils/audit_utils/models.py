@@ -1,8 +1,96 @@
 import sqlite3
+import MySQLdb
 import sys
 
 DEFAULT_TABLE_NAME='default'
 MEM_DB=':memory:'
+
+class MySqlTable(object):
+	"""Generates a mysql table connection. Assumes DB is already set up
+
+	Args:
+		mysql_host: the mysql host location (str)
+		mysql_usr: the user intended to write to the mysql database (str)
+		mysql_pwd: the pwd of the user for mysql (str)
+		mysql_db: the database in the mysql host intended to write to (str)
+
+	Attributes:
+		db: the mysql database connection
+		cur:
+
+
+	"""
+	def __init__(self, mysql_host, mysql_usr, mysql_pwd, mysql_db):
+		self.conn_info = {
+			'host':mysql_host,
+			'user':mysql_usr,
+			'passwd':mysql_pwd,
+			'db':mysql_db,
+		}
+		self.connect()
+		self.cur = self.db.cursor()
+		
+	def connect(self):
+		self.db = MySQLdb.connect(
+			host=self.conn_info['host'], user=self.conn_info['user'], 
+			passwd=self.conn_info['passwd'], db=self.conn_info['db']
+		)
+
+	def run_cmd(self, cmd):
+		"""Runs a generic comand on the mysql database
+
+		Args:
+			cmd: a string of the SQL command to be run against the Sqlite DB
+
+		Returns:
+			The `fetchall` results of the cmd in a dict with the `describe`
+			results added as keys
+
+		Examples:
+			>>> s = MysqlTable('localhost', 'root', '', 'logstash')
+			>>> s.run_cmd('SHOW TABLES')
+			[{'Tables_in_logstash': 'im'}]
+
+		"""
+		try:
+			self.cur.close()
+			self.cur = self.db.cursor()
+			self.db.begin()
+			self.cur.execute(cmd)
+		except:
+			print >> sys.stderr, 'Bad cmd: {0}'.format(cmd)
+			raise
+		return_list = []
+		for row in self.cur.fetchall():
+			new_dict = {}
+			for index in xrange(len(self.cur.description)):
+				new_dict[self.cur.description[index][0]] = row[index]
+			return_list.append(new_dict)
+		return return_list
+
+	def commit(self):
+		"""Calls commit on the database. Not needed for `:memory:` db
+		"""
+		self.db.commit()
+
+	def close(self, commit=False):
+		"""Closes connection to database database
+		"""
+		if commit:
+			self.commit()
+		self.cur.close()
+		self.db.close()
+
+	def reconnect(self):
+		"""Reconnects the db connection and cursor
+		"""
+		try:
+			self.close()
+		except:
+			print >> sys.stderr, 'unable to close connect'
+		finally:
+			self.connect()
+			self.cur = self.db.cursor()
 
 class Sqlite3Table(object):
 	"""A Sqlite Database wrapper object

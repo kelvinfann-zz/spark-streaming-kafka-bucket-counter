@@ -1,7 +1,7 @@
 from flask_restful import Api, Resource
 
 from .utils import json_to_dict, dict_to_avro
-from .models import RecentSqlite3table
+from .models import RecentSqlite3table, MySqlTable
 
 class HttpEndpoint(Resource):
 	"""Essentially the parent class of all the other Flask RESTful class. 
@@ -102,9 +102,56 @@ class RSTIDFetch(HttpEndpoint):
 	"""
 	def get(self):
 		return self.recent_storage.rst_id
+
+
+##########################################
+##MySQL Datastore Endpoint################
+##########################################
+
+def set_site_mysql(app, mysql_host, mysql_usr, mysql_pwd, mysql_db):
+	"""Sets up a FlaskRestful HTTP endpoint for a SQLite database given a Flask
+	App.
+
+	Note: this mysql http endpoint assumes the Mysql DB is already set up and 
+	already has an event scheduler set to expire data
+
+	Args:
+		app: the Flask service object that is being enhanced into a RESTful 
+			endpoint
+		data_queue: a queue used as the source of data for the Flask Endpoint.
+			Each item in the queue should be an iterable filled with dicts. The 
+			SQLite database will read from this queue aperiodically and append 
+			all new objects
+		sql_schema: the sqlite schema that is to be used for the SQLite
+		db: the database path (str) that will be used as the SQLite 
+		table_name: the table name in the database we will be using to store the
+			data. The table must:
+				a) Not exist yet
+				b) Have the same schema as specified in the `sql_schema` param
+		clean_interval: the number of recent bulk records (int) that will be 
+			kept on the Sqlite database. A bulk record is essentially an object
+			(iter of rows (dicts)) from the data_queue
+		clean_freq_interval: the frequency (int) in which terms of bulk records
+			that the service will check to clean records
+
+	Returns:
+		None
+		
+	"""
+	api = Api(app)
+
+	mysql_obj = MySqlTable(mysql_host, mysql_usr, mysql_pwd, mysql_db)
+
+	# Assumes the 
+
+	custom = SLCustom.set(mysql_obj)
+	reconnect = SLReconnect.set(mysql_obj)
+
+	api.add_resource(custom, '/c/<string:custom>')
+	api.add_resource(reconnect, '/r')
 		
 ##########################################
-#RecentArrayDumpTable Datastore Endpoint##
+##RecentArrayDumpTable Datastore Endpoint#
 ##########################################
 
 def setup_site_RADT(app, recent_storage, data_queue):
