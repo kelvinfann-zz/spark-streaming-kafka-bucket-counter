@@ -47,7 +47,7 @@ CONFIG_TYPES = {
 		'sqlite_schema': str,
 		'sqlite_db': str,
 		'sqlite_table': str,
-		'clean_interval': int,
+		'0': int,
 		'clean_freq': int,
 	},
 }

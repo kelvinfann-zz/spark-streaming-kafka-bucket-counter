@@ -1,7 +1,7 @@
 from flask_restful import Api, Resource
 
 from .utils import json_to_dict, dict_to_avro
-from .models import RecentSqlite3table, MySqlTable
+from .models import RecentSqlite3table
 
 class HttpEndpoint(Resource):
 	"""Essentially the parent class of all the other Flask RESTful class. 
@@ -102,8 +102,7 @@ class RSTIDFetch(HttpEndpoint):
 	"""
 	def get(self):
 		return self.recent_storage.rst_id
-
-
+		
 ##########################################
 ##MySQL Datastore Endpoint################
 ##########################################
@@ -128,11 +127,6 @@ def set_site_mysql(app, mysql_host, mysql_usr, mysql_pwd, mysql_db):
 			data. The table must:
 				a) Not exist yet
 				b) Have the same schema as specified in the `sql_schema` param
-		clean_interval: the number of recent bulk records (int) that will be 
-			kept on the Sqlite database. A bulk record is essentially an object
-			(iter of rows (dicts)) from the data_queue
-		clean_freq_interval: the frequency (int) in which terms of bulk records
-			that the service will check to clean records
 
 	Returns:
 		None
@@ -151,7 +145,7 @@ def set_site_mysql(app, mysql_host, mysql_usr, mysql_pwd, mysql_db):
 	api.add_resource(reconnect, '/r')
 		
 ##########################################
-##RecentArrayDumpTable Datastore Endpoint#
+#RecentArrayDumpTable Datastore Endpoint##
 ##########################################
 
 def setup_site_RADT(app, recent_storage, data_queue):
